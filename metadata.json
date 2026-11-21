@@ -1,0 +1,6 @@
+{
+  "name": "CLICKWISE",
+  "description": "AI-powered cybersecurity awareness and suspicious-message analysis platform. Think Before You Click.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
