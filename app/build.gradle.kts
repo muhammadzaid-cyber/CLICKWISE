@@ -19,8 +19,8 @@ android {
     applicationId = "com.aistudio.clickwise.xkqmzt"
     minSdk = 24
     targetSdk = 36
-    versionCode = overrideVersionCode ?: 1
-    versionName = overrideVersionName ?: "1.0.0"
+    versionCode = overrideVersionCode ?: 2
+    versionName = overrideVersionName ?: "1.0.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
