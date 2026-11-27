@@ -12,12 +12,15 @@ android {
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
+  val overrideVersionCode = providers.gradleProperty("clickwiseVersionCode").orNull?.toIntOrNull()
+  val overrideVersionName = providers.gradleProperty("clickwiseVersionName").orNull?.takeIf { it.isNotBlank() }
+
   defaultConfig {
     applicationId = "com.aistudio.clickwise.xkqmzt"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = overrideVersionCode ?: 1
+    versionName = overrideVersionName ?: "1.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

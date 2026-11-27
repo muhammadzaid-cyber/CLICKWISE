@@ -1,5 +1,7 @@
 package com.example.ui.navigation
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
@@ -96,6 +98,7 @@ import com.example.ui.components.ClickwiseBrandEntrance
 import com.example.ui.components.ClickwiseBrandWordmark
 import com.example.ui.components.ClickwiseGridBackground
 import com.example.ui.components.ClickwiseShieldEmblem
+import com.example.ui.components.UpdateAvailableDialog
 import com.example.ui.screens.AboutTrustScreen
 import com.example.ui.screens.CyberAcademyScreen
 import com.example.ui.screens.DashboardScreen
@@ -146,6 +149,21 @@ fun ClickwiseApp(
     val sessionHistory by viewModel.sessionHistory.collectAsStateWithLifecycle()
     val completedLessonIds by viewModel.completedLessonIds.collectAsStateWithLifecycle()
     val quizState by viewModel.quizState.collectAsStateWithLifecycle()
+    val updateUiState by viewModel.updateUiState.collectAsStateWithLifecycle()
+    val showUpdateDialog by viewModel.showUpdateDialog.collectAsStateWithLifecycle()
+    val updatePreferences by viewModel.updatePreferences.collectAsStateWithLifecycle()
+
+    val unknownSourcesLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.onInstallPermissionReturned()
+    }
+
+    val systemInstallerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        viewModel.onSystemInstallerResult(result.resultCode)
+    }
 
     var highlightedLessonId by remember { mutableStateOf<String?>(null) }
     var sidebarCollapsed by remember { mutableStateOf(false) }
@@ -317,9 +335,15 @@ fun ClickwiseApp(
                                         language = language,
                                         reduceMotion = reduceMotion,
                                         sessionHistoryCount = sessionHistory.size,
+                                        installedVersionName = viewModel.installedVersionName,
+                                        installedVersionCode = viewModel.installedVersionCode,
+                                        updateState = updateUiState,
+                                        updatePreferences = updatePreferences,
                                         onSetLanguage = viewModel::setLanguage,
                                         onSetReduceMotion = viewModel::setReduceMotion,
-                                        onClearHistory = viewModel::clearSessionHistory
+                                        onClearHistory = viewModel::clearSessionHistory,
+                                        onCheckForUpdates = viewModel::checkForUpdatesManually,
+                                        onOpenUpdateDialog = viewModel::openUpdateDialogIfAvailable
                                     )
                                 }
                             }
@@ -372,6 +396,29 @@ fun ClickwiseApp(
                 visible = showSplash,
                 reduceMotion = reduceMotion,
                 onDismiss = viewModel::dismissEntranceSplash
+            )
+
+            UpdateAvailableDialog(
+                visible = showUpdateDialog && !showSplash,
+                state = updateUiState,
+                installedVersionName = viewModel.installedVersionName,
+                installedVersionCode = viewModel.installedVersionCode,
+                language = language,
+                reduceMotion = reduceMotion,
+                onDownloadAndInstall = viewModel::startUpdateDownloadAndInstall,
+                onSelectLater = viewModel::dismissUpdateAsLater,
+                onCancelDownload = viewModel::cancelUpdateDownload,
+                onOpenPermissionSettings = {
+                    unknownSourcesLauncher.launch(viewModel.buildManageUnknownSourcesIntent())
+                },
+                onLaunchSystemInstaller = {
+                    val intent = viewModel.buildSystemInstallerIntent()
+                    if (intent != null) {
+                        systemInstallerLauncher.launch(intent)
+                    }
+                },
+                onRetry = viewModel::retryUpdateFlow,
+                onClose = viewModel::closeUpdateDialog
             )
         }
     }

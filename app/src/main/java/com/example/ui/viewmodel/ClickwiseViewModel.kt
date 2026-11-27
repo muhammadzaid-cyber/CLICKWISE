@@ -1,10 +1,13 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.EducationalContentRepository
 import com.example.data.PreferencesRepository
+import com.example.data.UpdatePreferenceSnapshot
 import com.example.domain.analyzer.AiRepository
 import com.example.domain.analyzer.AnalysisStage
 import com.example.domain.analyzer.FirebaseAiRepository
@@ -16,6 +19,12 @@ import com.example.domain.model.QuizQuestion
 import com.example.domain.model.SampleScenario
 import com.example.domain.model.SessionScanRecord
 import com.example.domain.model.UrlInspectionResult
+import com.example.domain.update.AndroidApkIntegrityVerifier
+import com.example.domain.update.AndroidApkInstallerLauncher
+import com.example.domain.update.AndroidNetworkConnectivityChecker
+import com.example.domain.update.GitHubReleaseClient
+import com.example.domain.update.UpdateManager
+import com.example.domain.update.UpdateUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,14 +67,33 @@ data class QuizScreenState(
     val isCompleted: Boolean = false
 )
 
-class ClickwiseViewModel(
+class ClickwiseViewModel @JvmOverloads constructor(
     application: Application,
-    private val aiRepository: AiRepository
+    private val aiRepository: AiRepository = FirebaseAiRepository(),
+    customUpdateManagerFactory: ((Application, PreferencesRepository, kotlinx.coroutines.CoroutineScope) -> UpdateManager)? = null
 ) : AndroidViewModel(application) {
 
-    constructor(application: Application) : this(application, FirebaseAiRepository())
-
     private val preferencesRepository = PreferencesRepository(application.applicationContext)
+
+    private val updateManager: UpdateManager = customUpdateManagerFactory?.invoke(
+        application,
+        preferencesRepository,
+        viewModelScope
+    ) ?: UpdateManager(
+        scope = viewModelScope,
+        gateway = GitHubReleaseClient(application.applicationContext),
+        connectivityChecker = AndroidNetworkConnectivityChecker(application.applicationContext),
+        integrityVerifier = AndroidApkIntegrityVerifier(application.applicationContext),
+        installerLauncher = AndroidApkInstallerLauncher(application.applicationContext),
+        preferencesStore = preferencesRepository
+    )
+
+    val installedVersionName: String = BuildConfig.VERSION_NAME
+    val installedVersionCode: Int = BuildConfig.VERSION_CODE
+
+    val updateUiState: StateFlow<UpdateUiState> = updateManager.uiState
+    val showUpdateDialog: StateFlow<Boolean> = updateManager.showUpdateDialog
+    val updatePreferences: StateFlow<UpdatePreferenceSnapshot> = updateManager.prefsSnapshot
 
     private val _language = MutableStateFlow(AppLanguage.EN)
     val language: StateFlow<AppLanguage> = _language.asStateFlow()
@@ -112,11 +140,55 @@ class ClickwiseViewModel(
         viewModelScope.launch {
             delay(950)
             _showEntranceSplash.value = false
+            // Non-blocking startup update check (throttled to max once per 24h)
+            updateManager.runStartupAutoCheckIfDue()
         }
     }
 
     fun dismissEntranceSplash() {
         _showEntranceSplash.value = false
+    }
+
+    // --- Wireless Update Actions ---
+
+    fun checkForUpdatesManually() {
+        updateManager.checkForUpdatesManually()
+    }
+
+    fun openUpdateDialogIfAvailable() {
+        updateManager.openUpdateDialogIfAvailable()
+    }
+
+    fun dismissUpdateAsLater() {
+        updateManager.selectLater()
+    }
+
+    fun closeUpdateDialog() {
+        updateManager.closeDialogWithoutDismissing()
+    }
+
+    fun startUpdateDownloadAndInstall() {
+        updateManager.startDownloadAndInstall()
+    }
+
+    fun cancelUpdateDownload() {
+        updateManager.cancelDownload()
+    }
+
+    fun retryUpdateFlow() {
+        updateManager.retryFromError()
+    }
+
+    fun buildManageUnknownSourcesIntent(): Intent = updateManager.buildManagePermissionIntent()
+
+    fun onInstallPermissionReturned() {
+        updateManager.onInstallPermissionReturned()
+    }
+
+    fun buildSystemInstallerIntent(): Intent? = updateManager.buildSystemInstallerIntent()
+
+    fun onSystemInstallerResult(resultCode: Int) {
+        updateManager.onSystemInstallerResult(resultCode)
     }
 
     fun toggleLanguage() {

@@ -35,8 +35,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.example.data.ClickwiseStrings
+import com.example.data.UpdatePreferenceSnapshot
 import com.example.domain.model.AppLanguage
+import com.example.domain.update.UpdateUiState
 import com.example.ui.components.AnimatedPulseBeacon
+import com.example.ui.components.AppUpdateStatusPanel
 import com.example.ui.components.SectionEyebrow
 import com.example.ui.components.TechnicalPanel
 import com.example.ui.theme.LocalClickwiseColors
@@ -46,9 +49,15 @@ fun SettingsScreen(
     language: AppLanguage,
     reduceMotion: Boolean,
     sessionHistoryCount: Int,
+    installedVersionName: String = "",
+    installedVersionCode: Int = 1,
+    updateState: UpdateUiState = UpdateUiState.Idle,
+    updatePreferences: UpdatePreferenceSnapshot = UpdatePreferenceSnapshot(),
     onSetLanguage: (AppLanguage) -> Unit,
     onSetReduceMotion: (Boolean) -> Unit,
     onClearHistory: () -> Unit,
+    onCheckForUpdates: () -> Unit = {},
+    onOpenUpdateDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val colors = LocalClickwiseColors.current
@@ -143,6 +152,21 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+
+        item {
+            AppUpdateStatusPanel(
+                language = language,
+                installedVersionName = installedVersionName,
+                installedVersionCode = installedVersionCode,
+                updateState = updateState,
+                preferences = updatePreferences,
+                onCheckForUpdates = onCheckForUpdates,
+                onOpenUpdateDialog = onOpenUpdateDialog,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 1040.dp)
+            )
         }
 
         item { Spacer(Modifier.height(24.dp)) }
